@@ -17,14 +17,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// Load environment variables
+// .env
 func init() {
 	if err := godotenv.Load("/app/.env"); err != nil {
 		log.Fatal("Error loading .env file")
 	}
 }
 
-// Structs for BlueSky API responses
+// Structs para BlueSky API
 type Post struct {
 	URI    string `json:"uri"`
 	Author struct {
@@ -43,7 +43,7 @@ type SessionResponse struct {
 	DID       string `json:"did"`
 }
 
-// MongoDB connection
+// MongoDB
 var (
 	mongoClient *mongo.Client
 	postsColl   *mongo.Collection
@@ -58,7 +58,7 @@ func initDB() {
 	mongoClient = client
 	postsColl = mongoClient.Database("bluesky_data").Collection("posts")
 
-	// Create unique index
+	// Index unico
 	indexModel := mongo.IndexModel{
 		Keys:    bson.D{{Key: "post_uri", Value: 1}},
 		Options: options.Index().SetUnique(true),
@@ -69,7 +69,7 @@ func initDB() {
 	}
 }
 
-// DeepSeek API integration
+// DeepSeek API
 func generateTextDeepSeek(prompt string) string {
 	client := &http.Client{}
 	reqBody := map[string]interface{}{
@@ -109,11 +109,11 @@ func generateTextDeepSeek(prompt string) string {
 	return ""
 }
 
-// OpenAI API integration
+// OpenAI API
 func generateTextOpenAI(prompt string) string {
 	client := &http.Client{}
 	reqBody := map[string]interface{}{
-		"model": "chatgpt-4o-latest",
+		"model": "gpt-4o-mini",
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
 		},
@@ -149,7 +149,7 @@ func generateTextOpenAI(prompt string) string {
 	return ""
 }
 
-// BlueSky authentication
+// BlueSky autenticacao
 func authenticate() string {
 	reqBody := map[string]string{
 		"identifier": os.Getenv("BLUESKY_USERNAME"),
@@ -172,7 +172,6 @@ func authenticate() string {
 	return session.AccessJWT
 }
 
-// Main logic
 func main() {
   benchmarkTime := time.Now();
 
