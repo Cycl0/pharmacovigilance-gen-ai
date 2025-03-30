@@ -70,7 +70,7 @@ func initDB() {
 }
 
 // DeepSeek API integration
-func generateText(prompt string) string {
+func generateTextDeepSeek(prompt string) string {
 	client := &http.Client{}
 	reqBody := map[string]interface{}{
 		"model": "deepseek-chat",
@@ -90,6 +90,46 @@ func generateText(prompt string) string {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("DeepSeek API error: %v", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	if len(result.Choices) > 0 {
+		return result.Choices[0].Message.Content
+	}
+	return ""
+}
+
+// OpenAI API integration
+func generateTextOpenAI(prompt string) string {
+	client := &http.Client{}
+	reqBody := map[string]interface{}{
+		"model": "chatgpt-4o-latest",
+		"messages": []map[string]string{
+			{"role": "user", "content": prompt},
+		},
+		"temperature": 0.7,
+		"max_tokens":  500,
+	}
+
+	jsonBody, _ := json.Marshal(reqBody)
+
+	req, _ := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENAI_API_KEY"))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("OpenAI API error: %v", err)
 		return ""
 	}
 	defer resp.Body.Close()
@@ -199,8 +239,8 @@ func main() {
         Post: %s`, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, post.Record.Text)
 
 
-			sideEffects := generateText(prompt)
-			if sideEffects != "X" {
+			sideEffects := generateTextOpenAI(prompt)
+			if sideEffects != "X" && sideEffects != "" {
 				relevantPosts = append(relevantPosts, post)
         createdAt, _ := time.Parse(time.RFC3339Nano, post.Record.CreatedAt)
         var documents []interface{}
