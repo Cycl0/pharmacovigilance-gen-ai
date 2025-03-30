@@ -134,13 +134,15 @@ func authenticate() string {
 
 // Main logic
 func main() {
+  benchmarkTime := time.Now();
+
 	initDB()
 	accessToken := authenticate()
 	searchTerm := "Fluoxetina"
 
 	client := &http.Client{}
 	query := searchTerm
-	maxResults := 1000
+	maxResults := 1043
 	totalRetrieved := 0
 	cursor := ""
 
@@ -234,6 +236,11 @@ func main() {
 
 `, sideEffects))
 
+      if result.Cursor == "" || totalRetrieved >= maxResults {
+        timeElapsed := time.Since(benchmarkTime)
+        print(fmt.Sprintf("\n--- Tempo total: %s ---\n", timeElapsed))
+        break
+      }
 
 		}
 
