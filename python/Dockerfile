@@ -7,9 +7,10 @@ WORKDIR /app
 # Copiar arquivos necessarios
 COPY get_posts.py .
 COPY requirements.txt .
+COPY .env .
 
 # Instalar dependencias
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Executar o script quando o container iniciar
-CMD ["python", "get_posts.py"]
+["python", "get_posts.py"]
