@@ -34,3 +34,18 @@ docker build -t get_posts .
 ``` sh
 docker -run --network=host --rm get_posts
 ```
+
+## Test Benchmarks
+| Medicine                        | Model Name                                                      | Posts Analyzed | Detected | Cost       | Time               |
+|---------------------------------|-----------------------------------------------------------------|----------------|----------|------------|--------------------|
+| Fluoxetina (Fluoxetine/Prozac)  | deepseek-chat (using prompt 1)                                  | 1043           | 89       | $US 0.05   | ~3h                |
+| Fluoxetina (Fluoxetine/Prozac)  | deepseek-chat                                                   | 1043           | 203      | $US 0.03   | ~3h                |
+| Fluoxetina (Fluoxetine/Prozac)  | chatgpt4o-latest                                                | 1043           | 151      | $US 1.20   | 6m16.567483523s    |
+| Fluoxetina (Fluoxetine/Prozac)  | gpt-4o-mini                                                     | 1043           | 118      | $US 0.05   | 7m17.513542008s    |
+| Fluoxetina (Fluoxetine/Prozac)  | gpt-4o-mini (second try)                                        | 1043           | 118      | $US 0.03   | 7m42.488382209s    |
+| Fluoxetina (Fluoxetine/Prozac)  | local-FuseO1-DeepSeekR1-QwQ-Sky-32B-Q4_K_M                      | 491            | 93       | Free       | ~2h                |
+| Fluoxetina (Fluoxetine/Prozac)  | local-IQ-quant-1i-FuseO1-DeepSeekR1-QwQ-Sky-32B-Q4_K_M          | 587            | 113      | Free       | ~2h                |
+| Fluoxetina (Fluoxetine/Prozac)  | local-IQ-quant-1i-FuseO1-DeepSeekR1-QwQ-Sky-32B-Q4_K_M (second try) | 587       | 116      | Free       | ~2h                |
+| Fluoxetina (Fluoxetine/Prozac)  | gemini-2.0-flash-001                                            | 1043           | 216      | Free       | 29m38.312395001s   |
+| Fluoxetina (Fluoxetine/Prozac)  | qwen-max                                                        | 1043           | 120      | $US 0.544  | 14m31.540393825s   |
+| Fluoxetina (Fluoxetine/Prozac)  | claude-3.7-sonnet                                               | 1043           | 151      | $US 1.169  | 30m57.261575826s   |
