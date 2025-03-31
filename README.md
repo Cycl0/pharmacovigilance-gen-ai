@@ -1,7 +1,8 @@
 ## Objective
 - Use LLM models to analyze social media posts through the lens of pharmacovigilance.
-- Find posts of users talking about side effects of a determined medicine, infer if it is relevant and what exactly are the side effects they are talking about via LLMs.
-- And finally catalog this data.
+- Find posts of users mentioning specific medicines.
+- Infer if it the posts are relevant if they are mentioning side effects, if there are any, infer and extract this data.
+- And finally catalog the data.
 
 ## Requirements
 - Docker
@@ -36,6 +37,7 @@ docker -run --network=host --rm get_posts
 ```
 
 ## Test Benchmarks
+- Detected is not correct, it just means the number of posts it detected as relevant and extracted the data
 | Medicine                        | Model Name                                                      | Posts Analyzed | Detected | Cost       | Time               |
 |---------------------------------|-----------------------------------------------------------------|----------------|----------|------------|--------------------|
 | Fluoxetina (Fluoxetine/Prozac)  | deepseek-chat (using prompt 1)                                  | 1043           | 89       | $US 0.05   | ~3h                |
