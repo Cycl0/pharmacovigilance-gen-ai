@@ -1,8 +1,8 @@
 ## Objective
 - Use LLM models to analyze social media posts through the lens of pharmacovigilance.
 - Find posts of users mentioning specific medicines.
-- Infer if the posts are relevant if they are mentioning side effects, if there are any, infer and extract this data.
-- And finally catalog the data.
+- Infer if the posts are relevant, there is mention of any side effects, if identified, infer and extract this data.
+- Finally catalog the data.
 
 ## Requirements
 - Docker
@@ -36,7 +36,7 @@ docker build -t get_posts .
 docker -run --network=host --rm get_posts
 ```
 
-## Test Benchmarks
+## Test Benchmarks with modern LLMs (as of March, 2025)
 - Detected is not correct, it just means the number of posts it detected as relevant and extracted the data
 | Medicine                        | Model Name                                                      | Posts Analyzed | Detected | Cost       | Time               |
 |---------------------------------|-----------------------------------------------------------------|----------------|----------|------------|--------------------|
