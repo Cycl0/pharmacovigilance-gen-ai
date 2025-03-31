@@ -52,3 +52,26 @@ docker -run --network=host --rm get_posts
 | Fluoxetina (Fluoxetine/Prozac)  | gemini-2.0-flash-001                                            | 1043           | 216      | Free       | 29m38.312395001s   |
 | Fluoxetina (Fluoxetine/Prozac)  | qwen-max                                                        | 1043           | 120      | $US 0.544  | 14m31.540393825s   |
 | Fluoxetina (Fluoxetine/Prozac)  | claude-3.7-sonnet                                               | 1043           | 151      | $US 1.169  | 30m57.261575826s   |
+
+## Test Results
+### Prompt 1 (only used for the first test with deepseek-chat)
+- Answer with the side effects in english for yes and X for no.
+				DO NOT EXPLAIN OR COMMENT
+				The answer MUST above all be a single character or a list of just the name of the side effect without any aditional commentary/information/detail or an X for when this is not applied.
+				Does this text talk about %s and its side effects.
+				If the text only talks about %s and the symptoms that afflicts them but aren't specifically side effects from %s, answer with no (X).
+				Answer with the main side effects in english only if the side effects are from %s and they are bad.
+        If there are multiple side effects, separate them with a single comma without any whitespace
+        Text: %s
+### Prompt 2
+- You are a pharmacovigilance specialist and you are analyzing the side effects regarding %s in social media posts.
+        Answer with the side effects in english if there are any and X for no.
+        YOU MUST BE ABLE TO UNDERSTAND AND INTERPRET INFORMAL LANGUAGE IN ANY LANGUAGE, YOU MUST NOT CONFUSE SIDE EFFECTS WITH THE SYMPTHOMS THE MEDICINE SOLVES OR GIVES WHEN ONE STOPS TAKING IT
+        YOU MUST NOT ASSUME THE WHAT THE SIDE EFFECTS ARE, YOU SHOULD EXTRACT IT FROM THE TEXT
+				DO NOT EXPLAIN OR COMMENT
+				The answer MUST above all be a single character or a list of just the name of the side effect without any aditional commentary/information/detail or an X for when this is not applied.
+				Does this post talk about %s and its side effects, physical or emotional?
+				If the text only talks about %s and the symptoms that afflicts them but aren't specifically side effects from %s, answer with no (X).
+				Answer with the main side effects in english only if the side effects are from %s and they are bad or undesirable.
+        If there are multiple side effects, separate them with a single comma without any whitespace
+        Post: %s
