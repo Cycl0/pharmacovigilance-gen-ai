@@ -1,5 +1,5 @@
 ## Objective
-Use llm models to analyze social media posts through the lenses of pharmacovigilance to verify if the user is talking about side effects of determined medicine and catalog this data.
+Use LLM models to analyze social media posts through the lenses of pharmacovigilance. Verify if users are talking about side effects of a determined medicine, then catalog this data.
 
 ## Requirements
 - Docker
