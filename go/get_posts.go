@@ -336,8 +336,8 @@ func main() {
       // Prompt 2
 
 			prompt := fmt.Sprintf(`
-        You are a pharmacovigilance specialist and you are analyzing a the side effects regarding %s in social media posts.
-        Answer with the side effects in englis if there is and X for no.
+        You are a pharmacovigilance specialist and you are analyzing the side effects regarding %s in social media posts.
+        Answer with the side effects in english if there are any and X for no.
         YOU MUST BE ABLE TO UNDERSTAND AND INTERPRET INFORMAL LANGUAGE IN ANY LANGUAGE, YOU MUST NOT CONFUSE SIDE EFFECTS WITH THE SYMPTHOMS THE MEDICINE SOLVES OR GIVES WHEN ONE STOPS TAKING IT
         YOU MUST NOT ASSUME THE WHAT THE SIDE EFFECTS ARE, YOU SHOULD EXTRACT IT FROM THE TEXT
 				DO NOT EXPLAIN OR COMMENT
