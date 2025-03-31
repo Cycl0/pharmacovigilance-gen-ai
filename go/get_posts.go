@@ -88,6 +88,11 @@ func generateTextDeepSeek(prompt string) string {
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("DEEPSEEK_API_KEY"))
 	req.Header.Set("Content-Type", "application/json")
 
+  // Cliente customizado com 120 segundos de timeout
+  client := &http.Client{
+    Timeout: 120 * time.Second,
+  }
+
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("DeepSeek API error: %v", err)
@@ -128,6 +133,11 @@ func generateTextOpenAI(prompt string) string {
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENAI_API_KEY"))
 	req.Header.Set("Content-Type", "application/json")
 
+  // Cliente customizado com 120 segundos de timeout
+  client := &http.Client{
+    Timeout: 120 * time.Second,
+  }
+
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("OpenAI API error: %v", err)
@@ -167,6 +177,11 @@ func generateTextOpenRouter(prompt string) string {
 	req, _ := http.NewRequest("POST", "https://openrouter.ai/api/v1/chat/completions", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENROUTER_API_KEY"))
 	req.Header.Set("Content-Type", "application/json")
+
+  // Cliente customizado com 120 segundos de timeout
+  client := &http.Client{
+    Timeout: 120 * time.Second,
+  }
 
 	resp, err := client.Do(req)
 	if err != nil {
