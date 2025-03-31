@@ -37,7 +37,7 @@ docker -run --network=host --rm get_posts
 ```
 
 ## Test Benchmarks with modern LLMs (as of March, 2025)
-- Detected is not correct, it just means the number of posts it detected as relevant and extracted the data
+- The column `Detected` does not mean correctly detected, but the number of posts detected as relevant and had data extracted
 
 | Medicine                        | Model Name                                                      | Posts Analyzed | Detected | Cost       | Time               |
 |---------------------------------|-----------------------------------------------------------------|----------------|----------|------------|--------------------|
