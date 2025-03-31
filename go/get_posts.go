@@ -150,6 +150,46 @@ func generateTextOpenAI(prompt string) string {
 	return ""
 }
 
+// OpenRouter API
+func generateTextOpenRouter(prompt string) string {
+	client := &http.Client{}
+	reqBody := map[string]interface{}{
+		"model": "deepseek/deepseek-r1:free",
+		"messages": []map[string]string{
+			{"role": "user", "content": prompt},
+		},
+		"temperature": 0.7,
+		"max_tokens":  500,
+	}
+
+	jsonBody, _ := json.Marshal(reqBody)
+
+	req, _ := http.NewRequest("POST", "https://openrouter.ai/api/v1/chat/completions", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENROUTER_API_KEY"))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("OpenAI API error: %v", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	if len(result.Choices) > 0 {
+		return result.Choices[0].Message.Content
+	}
+	return ""
+}
+
 
 func generateTextLocalLLM(prompt string) string {
   client := &http.Client{}
@@ -294,7 +334,7 @@ func main() {
         Post: %s`, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, post.Record.Text)
 
 
-			sideEffects := generateTextOpenAI(prompt)
+			sideEffects := generateTextOpenRouter(prompt)
 			if sideEffects != "X" && sideEffects != "" {
 				relevantPosts = append(relevantPosts, post)
         createdAt, _ := time.Parse(time.RFC3339Nano, post.Record.CreatedAt)
