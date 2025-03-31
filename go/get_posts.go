@@ -2,6 +2,7 @@ package main
 
 import (
   "regexp"
+  "errors"
   "bytes"
 	"context"
 	"encoding/json"
@@ -70,8 +71,8 @@ func initDB() {
 	}
 }
 
-// DeepSeek API
-func generateTextDeepSeek(prompt string) string {
+// Deepseek API
+func generateTextDeepSeek(prompt string) (string, error) {
 	client := &http.Client{}
 	reqBody := map[string]interface{}{
 		"model": "deepseek-chat",
@@ -81,22 +82,31 @@ func generateTextDeepSeek(prompt string) string {
 		"temperature": 0.7,
 		"max_tokens":  500,
 	}
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request body: %w", err)
+	}
 
-	jsonBody, _ := json.Marshal(reqBody)
+	req, err := http.NewRequest("POST", "https://api.deepseek.com/v1/chat/completions", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
 
-	req, _ := http.NewRequest("POST", "https://api.deepseek.com/v1/chat/completions", bytes.NewBuffer(jsonBody))
-	req.Header.Set("Authorization", "Bearer "+os.Getenv("DEEPSEEK_API_KEY"))
+	apiKey := os.Getenv("DEEPSEEK_API_KEY")
+	if apiKey == "" {
+		return "", errors.New("DEEPSEEK_API_KEY environment variable not set")
+	}
+
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-  // Cliente customizado com 120 segundos de timeout
-  client = &http.Client{
-    Timeout: 120 * time.Second,
-  }
+	client = &http.Client{
+		Timeout: 120 * time.Second,
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("DeepSeek API error: %v", err)
-		return ""
+		return "", fmt.Errorf("API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -106,17 +116,95 @@ func generateTextDeepSeek(prompt string) string {
 				Content string `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error,omitempty"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
 
-	if len(result.Choices) > 0 {
-		return result.Choices[0].Message.Content
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("Failed to decode API response: %w", err)
 	}
-	return ""
+
+	if result.Error != nil && result.Error.Message != "" {
+		return "", fmt.Errorf("API returned error: %s", result.Error.Message)
+	}
+
+	if len(result.Choices) == 0 {
+		return "", errors.New("No choices returned from API")
+	}
+
+	return result.Choices[0].Message.Content, nil
 }
 
+
+// OpenRouter API
+func generateTextOpenRouter(prompt string) (string, error) {
+	client := &http.Client{}
+	reqBody := map[string]interface{}{
+		"model": "google/gemini-2.0-flash-001",
+		"messages": []map[string]string{
+			{"role": "user", "content": prompt},
+		},
+		"temperature": 0.7,
+		"max_tokens":  500,
+	}
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", "https://openrouter.ai/api/v1/chat/completions", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	apiKey := os.Getenv("OPENROUTER_API_KEY")
+	if apiKey == "" {
+		return "", errors.New("OPENROUTER_API_KEY environment variable not set")
+	}
+
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client = &http.Client{
+		Timeout: 120 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error,omitempty"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("Failed to decode API response: %w", err)
+	}
+
+	if result.Error != nil && result.Error.Message != "" {
+		return "", fmt.Errorf("API returned error: %s", result.Error.Message)
+	}
+
+	if len(result.Choices) == 0 {
+		return "", errors.New("No choices returned from API")
+	}
+
+	return result.Choices[0].Message.Content, nil
+}
+
+
 // OpenAI API
-func generateTextOpenAI(prompt string) string {
+func generateTextOpenAI(prompt string) (string, error) {
 	client := &http.Client{}
 	reqBody := map[string]interface{}{
 		"model": "gpt-4o-mini",
@@ -126,22 +214,31 @@ func generateTextOpenAI(prompt string) string {
 		"temperature": 0.7,
 		"max_tokens":  500,
 	}
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request body: %w", err)
+	}
 
-	jsonBody, _ := json.Marshal(reqBody)
+	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
 
-	req, _ := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(jsonBody))
-	req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENAI_API_KEY"))
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		return "", errors.New("OPENAI_API_KEY environment variable not set")
+	}
+
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-  // Cliente customizado com 120 segundos de timeout
-  client = &http.Client{
-    Timeout: 120 * time.Second,
-  }
+	client = &http.Client{
+		Timeout: 120 * time.Second,
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("OpenAI API error: %v", err)
-		return ""
+		return "", fmt.Errorf("API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -151,62 +248,27 @@ func generateTextOpenAI(prompt string) string {
 				Content string `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error,omitempty"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
 
-	if len(result.Choices) > 0 {
-		return result.Choices[0].Message.Content
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("Failed to decode API response: %w", err)
 	}
-	return ""
+
+	if result.Error != nil && result.Error.Message != "" {
+		return "", fmt.Errorf("API returned error: %s", result.Error.Message)
+	}
+
+	if len(result.Choices) == 0 {
+		return "", errors.New("No choices returned from API")
+	}
+
+	return result.Choices[0].Message.Content, nil
 }
 
-// OpenRouter API
-func generateTextOpenRouter(prompt string) string {
-	client := &http.Client{}
-	reqBody := map[string]interface{}{
-		"model": "deepseek/deepseek-r1:free",
-		"messages": []map[string]string{
-			{"role": "user", "content": prompt},
-		},
-		"temperature": 0.7,
-		"max_tokens":  500,
-	}
-
-	jsonBody, _ := json.Marshal(reqBody)
-
-	req, _ := http.NewRequest("POST", "https://openrouter.ai/api/v1/chat/completions", bytes.NewBuffer(jsonBody))
-	req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENROUTER_API_KEY"))
-	req.Header.Set("Content-Type", "application/json")
-
-  // Cliente customizado com 120 segundos de timeout
-  client = &http.Client{
-    Timeout: 120 * time.Second,
-  }
-
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Printf("OpenAI API error: %v", err)
-		return ""
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-	}
-	json.NewDecoder(resp.Body).Decode(&result)
-
-	if len(result.Choices) > 0 {
-		return result.Choices[0].Message.Content
-	}
-	return ""
-}
-
-
-func generateTextLocalLLM(prompt string) string {
+func generateTextLocalLLM(prompt string) (string, error) {
   client := &http.Client{}
 	reqBody := map[string]interface{}{
 		"model": "/models/FuseO1-DeepSeekR1-QwQ-SkyT1-32B-Preview.i1-Q4_K_M.gguf",
@@ -230,7 +292,7 @@ func generateTextLocalLLM(prompt string) string {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("Llama API error: %v", err)
-		return ""
+		return "", errors.New("Llama API error")
 	}
 	defer resp.Body.Close()
 
@@ -240,8 +302,18 @@ func generateTextLocalLLM(prompt string) string {
 				Content string `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error,omitempty"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("Failed to decode API response: %w", err)
+	}
+
+	if result.Error != nil && result.Error.Message != "" {
+		return "", fmt.Errorf("API returned error: %s", result.Error.Message)
+	}
 
 	if len(result.Choices) > 0 {
     message := result.Choices[0].Message.Content
@@ -255,9 +327,9 @@ func generateTextLocalLLM(prompt string) string {
     cleaned = strings.TrimSpace(cleaned)
     cleaned = regexp.MustCompile(`\n{3,}`).ReplaceAllString(cleaned, "\n")
 
-		return cleaned
+		return cleaned, nil
 	}
-	return ""
+	return "", errors.New("No choices returned from API")
 }
 
 // BlueSky autenticacao
@@ -349,7 +421,10 @@ func main() {
         Post: %s`, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, post.Record.Text)
 
 
-			sideEffects := generateTextOpenRouter(prompt)
+			sideEffects, err := generateTextOpenRouter(prompt)
+      if err != nil {
+        log.Printf("Error: %v", err)
+      }
 			if sideEffects != "X" && sideEffects != "" {
 				relevantPosts = append(relevantPosts, post)
         createdAt, _ := time.Parse(time.RFC3339Nano, post.Record.CreatedAt)
