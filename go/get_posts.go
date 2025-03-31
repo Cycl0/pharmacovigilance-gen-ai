@@ -89,7 +89,7 @@ func generateTextDeepSeek(prompt string) string {
 	req.Header.Set("Content-Type", "application/json")
 
   // Cliente customizado com 120 segundos de timeout
-  client := &http.Client{
+  client = &http.Client{
     Timeout: 120 * time.Second,
   }
 
@@ -134,7 +134,7 @@ func generateTextOpenAI(prompt string) string {
 	req.Header.Set("Content-Type", "application/json")
 
   // Cliente customizado com 120 segundos de timeout
-  client := &http.Client{
+  client = &http.Client{
     Timeout: 120 * time.Second,
   }
 
@@ -179,7 +179,7 @@ func generateTextOpenRouter(prompt string) string {
 	req.Header.Set("Content-Type", "application/json")
 
   // Cliente customizado com 120 segundos de timeout
-  client := &http.Client{
+  client = &http.Client{
     Timeout: 120 * time.Second,
   }
 
@@ -223,7 +223,7 @@ func generateTextLocalLLM(prompt string) string {
 	req.Header.Set("Content-Type", "application/json")
 
   // Cliente customizado com 120 segundos de timeout
-  client := &http.Client{
+  client = &http.Client{
     Timeout: 120 * time.Second,
   }
 
