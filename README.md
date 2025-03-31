@@ -1,7 +1,7 @@
 ## Objective
 - Use LLM models to analyze social media posts through the lens of pharmacovigilance.
 - Find posts of users mentioning specific medicines.
-- Infer if it the posts are relevant if they are mentioning side effects, if there are any, infer and extract this data.
+- Infer if the posts are relevant if they are mentioning side effects, if there are any, infer and extract this data.
 - And finally catalog the data.
 
 ## Requirements
