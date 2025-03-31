@@ -38,6 +38,7 @@ docker -run --network=host --rm get_posts
 
 ## Test Benchmarks with modern LLMs (as of March, 2025)
 - Detected is not correct, it just means the number of posts it detected as relevant and extracted the data
+
 | Medicine                        | Model Name                                                      | Posts Analyzed | Detected | Cost       | Time               |
 |---------------------------------|-----------------------------------------------------------------|----------------|----------|------------|--------------------|
 | Fluoxetina (Fluoxetine/Prozac)  | deepseek-chat (using prompt 1)                                  | 1043           | 89       | $US 0.05   | ~3h                |
