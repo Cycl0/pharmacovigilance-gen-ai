@@ -1,6 +1,7 @@
 package main
 
 import (
+  "regexp"
   "bytes"
 	"context"
 	"encoding/json"
@@ -145,6 +146,61 @@ func generateTextOpenAI(prompt string) string {
 
 	if len(result.Choices) > 0 {
 		return result.Choices[0].Message.Content
+	}
+	return ""
+}
+
+
+func generateTextLocalLLM(prompt string) string {
+  client := &http.Client{}
+	reqBody := map[string]interface{}{
+		"model": "/models/FuseO1-DeepSeekR1-QwQ-SkyT1-32B-Preview.i1-Q4_K_M.gguf",
+		"messages": []map[string]string{
+			{"role": "user", "content": prompt},
+		},
+		"temperature": 0.7,
+		"max_tokens":  8192,
+	}
+
+	jsonBody, _ := json.Marshal(reqBody)
+
+	req, _ := http.NewRequest("POST", "http://127.0.0.1:8000/v1/chat/completions", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+
+  // Cliente customizado com 120 segundos de timeout
+  client := &http.Client{
+    Timeout: 120 * time.Second,
+  }
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Llama API error: %v", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	if len(result.Choices) > 0 {
+    message := result.Choices[0].Message.Content
+
+    fmt.Printf("%s\n", message)
+
+    // Remover <think> tags e o conteudo dentro
+    re := regexp.MustCompile(`(?s)<think>.*?</think>`)
+    cleaned := re.ReplaceAllString(message, "")
+    // Tira espacos em branco se sobrar
+    cleaned = strings.TrimSpace(cleaned)
+    cleaned = regexp.MustCompile(`\n{3,}`).ReplaceAllString(cleaned, "\n")
+
+		return cleaned
 	}
 	return ""
 }
