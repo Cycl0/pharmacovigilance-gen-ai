@@ -1,6 +1,9 @@
 package main
 
 import (
+  "io"
+  "encoding/binary"
+	"net"
   "regexp"
   "errors"
   "bytes"
@@ -47,8 +50,9 @@ type SessionResponse struct {
 
 // MongoDB
 var (
-	mongoClient *mongo.Client
-	postsColl   *mongo.Collection
+  mongoClient       *mongo.Client
+	postsColl         *mongo.Collection
+	medicationsColl   *mongo.Collection
 )
 
 func initDB() {
@@ -59,6 +63,7 @@ func initDB() {
 	}
 	mongoClient = client
 	postsColl = mongoClient.Database("bluesky_data").Collection("posts")
+  medicationsColl = mongoClient.Database("bluesky_data").Collection("medications")
 
 	// Index unico
 	indexModel := mongo.IndexModel{
@@ -332,6 +337,128 @@ func generateTextLocalLLM(prompt string) (string, error) {
 	return "", errors.New("No choices returned from API")
 }
 
+func generateTextUmbrella(prompt string) (string, error) {
+    conn := connectToServer()
+    defer conn.Close()
+
+    // First confirm we can receive the welcome message
+    welcomeLength := make([]byte, 4)
+    if _, err := io.ReadFull(conn, welcomeLength); err != nil {
+        return "", fmt.Errorf("error reading welcome length: %v", err)
+    }
+
+    welcomeSize := binary.BigEndian.Uint32(welcomeLength)
+    welcomeData := make([]byte, welcomeSize)
+    if _, err := io.ReadFull(conn, welcomeData); err != nil {
+        return "", fmt.Errorf("error reading welcome data: %v", err)
+    }
+
+    fmt.Printf("Welcome message: %s\n", string(welcomeData))
+
+    // Simple request with only required fields
+    req := APIRequest{
+        Context:      prompt,
+        MaxNewTokens: 512,
+        Temperature:  0.7,
+    }
+
+    // Send request and get response
+    responseText, err := sendRequest(conn, req)
+    if err != nil {
+        return "", fmt.Errorf("request failed: %w", err)
+    }
+
+    // Parse the response to extract the generated text
+    var response map[string]interface{}
+    if err := json.Unmarshal([]byte(responseText), &response); err != nil {
+        return "", fmt.Errorf("failed to parse response: %w", err)
+    }
+
+    // Extract the generated text from the "generated_text" field
+    generatedText, ok := response["generated_text"].(string)
+    if !ok {
+        return "", fmt.Errorf("could not find generated text in response")
+    }
+
+    // Try to send termination request but handle EOF gracefully
+    _, err = sendRequest(conn, APIRequest{
+        MaxNewTokens: 0,
+        Temperature: 0,
+        Terminate:   true,
+    })
+
+    // Just log termination errors rather than failing the whole function
+    if err != nil {
+        log.Printf("Warning: termination request error: %v", err)
+    }
+
+    return generatedText, nil
+}
+
+func sendRequest(conn net.Conn, req APIRequest) (string, error) {
+    // Serialize using JSON
+    data, err := json.Marshal(req)
+    if err != nil {
+        return "", fmt.Errorf("JSON marshaling error: %v", err)
+    }
+
+    // Debug - print what we're sending
+    fmt.Printf("Sending data: %s\n", string(data))
+
+    // Send length prefix
+    length := make([]byte, 4)
+    binary.BigEndian.PutUint32(length, uint32(len(data)))
+    if _, err := conn.Write(length); err != nil {
+        return "", fmt.Errorf("failed to write length: %v", err)
+    }
+
+    // Send payload
+    if _, err := conn.Write(data); err != nil {
+        return "", fmt.Errorf("failed to write data: %v", err)
+    }
+
+    // Receive response
+    responseLength := make([]byte, 4)
+    if _, err = io.ReadFull(conn, responseLength); err != nil {
+        return "", fmt.Errorf("error reading response length: %v", err)
+    }
+
+    responseSize := binary.BigEndian.Uint32(responseLength)
+    responseData := make([]byte, responseSize)
+    if _, err = io.ReadFull(conn, responseData); err != nil {
+        return "", fmt.Errorf("error reading response data: %v", err)
+    }
+
+    fmt.Printf("Received response: %s\n", string(responseData))
+    return string(responseData), nil
+}
+
+type APIRequest struct {
+	Context        string `json:"context,omitempty"`
+	InputIDs       []int  `json:"input_ids,omitempty"`
+	MaxNewTokens   int    `json:"max_new_tokens"`
+	Temperature    float64 `json:"temperature"`
+	Terminate      bool   `json:"terminate,omitempty"`
+}
+
+func connectToServer() net.Conn {
+	retryInterval := 5 * time.Second
+	maxRetries := 5
+
+	for i := 0; i < maxRetries; i++ {
+		conn, err := net.Dial("tcp", "localhost:65432")
+		if err == nil {
+			log.Println("Connected to server")
+			return conn
+		}
+
+		log.Printf("Connection failed (attempt %d/%d): %v", i+1, maxRetries, err)
+		time.Sleep(retryInterval)
+	}
+	log.Fatal("Failed to connect after multiple attempts")
+	return nil
+}
+
 // BlueSky autenticacao
 func authenticate() string {
 	reqBody := map[string]string{
@@ -355,16 +482,45 @@ func authenticate() string {
 	return session.AccessJWT
 }
 
+type Medication struct {
+    Name string
+    ADRs []string
+}
+
+func parseMedications(input string) []Medication {
+    var medications []Medication
+    entries := strings.Split(input, ":")
+
+    for _, entry := range entries {
+        parts := strings.Split(entry, ",")
+        if len(parts) < 1 {
+            continue // pula entradas vazias
+        }
+
+        for i := range parts {
+            parts[i] = strings.TrimSpace(parts[i])
+        }
+
+        med := Medication{
+            Name: parts[0],
+            ADRs: parts[1:],
+        }
+
+        medications = append(medications, med)
+    }
+
+    return medications
+}
+
 func main() {
   benchmarkTime := time.Now();
 
 	initDB()
 	accessToken := authenticate()
-	searchTerm := "Fluoxetina"
 
 	client := &http.Client{}
-	query := searchTerm
-	maxResults := 1043
+	query := "Venvanse"
+	maxResults := 100
 	totalRetrieved := 0
 	cursor := ""
 
@@ -391,7 +547,6 @@ func main() {
 		json.NewDecoder(resp.Body).Decode(&result)
 		resp.Body.Close()
 
-		var relevantPosts []Post
 		for _, post := range result.Posts {
 
       // Prompt 1
@@ -455,11 +610,11 @@ func main() {
 `, post.Author.DisplayName))
       print(fmt.Sprintf(`Texto: %s
 `, post.Record.Text))
-      print(fmt.Sprintf(`Efeitos colaterais: %s
+      print(fmt.Sprintf(`Analise: %s
 
 ---
 
-`, sideEffects))
+`, analysis))
 
       if result.Cursor == "" || totalRetrieved >= maxResults {
         timeElapsed := time.Since(benchmarkTime)
