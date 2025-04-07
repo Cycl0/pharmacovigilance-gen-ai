@@ -558,50 +558,132 @@ func main() {
 			// 	If the text only talks about %s and the symptoms that afflicts them but aren't specifically side effects from %s, answer with no (X).
 			// 	Answer with the main side effects in english only if the side effects are from %s and they are bad.
       //   If there are multiple side effects, separate them with a single comma without any whitespace
-      //   Text: %s`, searchTerm, searchTerm, searchTerm, searchTerm, post.Record.Text)
+      //   Text: %s`, query, query, query, query, post.Record.Text)
 
       // Prompt 2
 
+      // prompt := fmt.Sprintf(`
+      // You are a pharmacovigilance specialist and you are analyzing the side effects regarding %s in social media posts.
+      // Answer with the side effects in english if there are any and X for no.
+      // YOU MUST BE ABLE TO UNDERSTAND AND INTERPRET INFORMAL LANGUAGE IN ANY LANGUAGE, YOU MUST NOT CONFUSE SIDE EFFECTS WITH THE SYMPTHOMS THE MEDICINE SOLVES OR GIVES WHEN ONE STOPS TAKING IT
+      // YOU MUST NOT ASSUME THE WHAT THE SIDE EFFECTS ARE, YOU SHOULD EXTRACT IT FROM THE TEXT
+      // DO NOT EXPLAIN OR COMMENT
+      // The answer MUST above all be a single character or a list of just the name of the side effect without any aditional commentary/information/detail or an X for when this is not applied.
+      // Does this post talk about %s and its side effects, physical or emotional?
+      // If the text only talks about %s and the symptoms that afflicts them but aren't specifically side effects from %s, answer with no (X).
+      // Answer with the main side effects in english only if the side effects are from %s and they are bad or undesirable.
+      // If there are multiple side effects, separate them with a single comma without any whitespace
+      // Post: %s`, query, query, query, query, post.Record.Text)
+
+      // Prompt 3
+
 			prompt := fmt.Sprintf(`
-        You are a pharmacovigilance specialist and you are analyzing the side effects regarding %s in social media posts.
-        Answer with the side effects in english if there are any and X for no.
-        YOU MUST BE ABLE TO UNDERSTAND AND INTERPRET INFORMAL LANGUAGE IN ANY LANGUAGE, YOU MUST NOT CONFUSE SIDE EFFECTS WITH THE SYMPTHOMS THE MEDICINE SOLVES OR GIVES WHEN ONE STOPS TAKING IT
+
+        Only answer in a single line with the output following these templates
+        medicine is always first
+        (adr is adverse drug reaction)
+        if an adr is non existent, put an X instead
+
+        Example 1 of output:
+        <medicine1>,<adr1>
+        Example 2 of output:
+        <medicine1>,<adr1>,<adr2>,<adr3>
+        Example 3 of output:
+        <medicine1>,<adr1>,<adr2>:<medicine1>,<adr1>,<adr2>,<adr3>
+        Example 4 of outupt:
+        <medicine1>,<adr1>:<medicine2>,<adr1>:<medicine3>,<adr1>,<adr2>,<adr3>
+
+        You are a pharmacovigilance specialist and you are analyzing the side effects regarding medicines in social media posts.
+        YOU MUST BE ABLE TO UNDERSTAND AND INTERPRET INFORMAL LANGUAGE IN ANY LANGUAGE, YOU MUST NOT CONFUSE SIDE EFFECTS WITH THE SYMPTHOMS THE MEDICINE SOLVES
         YOU MUST NOT ASSUME THE WHAT THE SIDE EFFECTS ARE, YOU SHOULD EXTRACT IT FROM THE TEXT
 				DO NOT EXPLAIN OR COMMENT
-				The answer MUST above all be a single character or a list of just the name of the side effect without any aditional commentary/information/detail or an X for when this is not applied.
-				Does this post talk about %s and its side effects, physical or emotional?
-				If the text only talks about %s and the symptoms that afflicts them but aren't specifically side effects from %s, answer with no (X).
-				Answer with the main side effects in english only if the side effects are from %s and they are bad or undesirable.
-        If there are multiple side effects, separate them with a single comma without any whitespace
-        Post: %s`, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, post.Record.Text)
+				Does this post talk about a medicine and its side effects, physical or emotional?
+        Make the pairs and answer if there is any medicine or adrs
+        Put an X in the first adr field for the respective medicine if it's talking about sympthons that are not related to the medicine
+				Translate to english the main side effects and the name of the medicine
+        Post: %s`, post.Record.Text)
 
 
-			sideEffects, err := generateTextOpenRouter(prompt)
-      if err != nil {
-        log.Printf("Error: %v", err)
+ 		answer, errGeneration := generateTextUmbrella(prompt)
+      if errGeneration != nil {
+        log.Printf("Error: %v", errGeneration)
       }
-			if sideEffects != "X" && sideEffects != "" {
-				relevantPosts = append(relevantPosts, post)
-        createdAt, _ := time.Parse(time.RFC3339Nano, post.Record.CreatedAt)
-        var documents []interface{}
-				documents = append(documents, bson.M{
-					"post_uri": post.URI,
-					"author": bson.M{
-						"did":          post.Author.DID,
-						"handle":       post.Author.Handle,
-						"display_name": post.Author.DisplayName,
-					},
-					"content":      post.Record.Text,
-					"created_at":   primitive.NewDateTimeFromTime(createdAt),
-					"indexed_at":   primitive.NewDateTimeFromTime(time.Now().UTC()),
-					"search_query": searchTerm,
-          "side_effects": strings.Split(sideEffects, ","),
-				})
-        _, err := postsColl.InsertMany(context.TODO(), documents, options.InsertMany().SetOrdered(false))
-        if err != nil {
-            log.Printf("Insert error: %v", err)
+
+      analysis := parseMedications(answer)
+
+      var medicationUpdates []mongo.WriteModel
+      for _, med := range analysis {
+        if med.Name == "" {
+          continue
         }
-			}
+
+        // Filtrar fora 'X' (Que significa sem ADRs)
+        filteredADRs := make([]string, 0)
+        for _, adr := range med.ADRs {
+          if adr != "X" {
+            filteredADRs = append(filteredADRs, adr)
+          }
+        }
+
+        if len(filteredADRs) == 0 {
+          continue
+        }
+
+        // Filtro Case-insensitive
+        filter := bson.M{
+          "name": bson.M{
+            "$regex":   "^" + regexp.QuoteMeta(med.Name) + "$",
+            "$options": "i", // Case-insensitive
+          },
+        }
+
+        update := bson.M{
+          "$addToSet": bson.M{
+            "adrs": bson.M{"$each": filteredADRs},
+          },
+          "$inc": bson.M{"mentionCount": 1},
+          "$setOnInsert": bson.M{
+            "name":          med.Name,
+            "firstMentioned": primitive.NewDateTimeFromTime(time.Now().UTC()),
+          },
+        }
+
+        model := mongo.NewUpdateOneModel().
+          SetFilter(filter).
+          SetUpdate(update).
+          SetUpsert(true)
+
+        medicationUpdates = append(medicationUpdates, model)
+      }
+
+      // Escrever todos em bulk
+      if len(medicationUpdates) > 0 {
+        _, err := medicationsColl.BulkWrite(context.TODO(), medicationUpdates)
+        if err != nil {
+          log.Printf("Medication update error: %v", err)
+        }
+      }
+
+      createdAt, _ := time.Parse(time.RFC3339Nano, post.Record.CreatedAt)
+      var documents []interface{}
+      documents = append(documents, bson.M{
+        "post_uri": post.URI,
+        "author": bson.M{
+          "did":          post.Author.DID,
+          "handle":       post.Author.Handle,
+          "display_name": post.Author.DisplayName,
+        },
+        "content":      post.Record.Text,
+        "created_at":   primitive.NewDateTimeFromTime(createdAt),
+        "indexed_at":   primitive.NewDateTimeFromTime(time.Now().UTC()),
+        "query": query,
+        "rawOutput": answer,
+        "analysis": analysis,
+      })
+      _, err := postsColl.InsertMany(context.TODO(), documents, options.InsertMany().SetOrdered(true))
+      if err != nil {
+        log.Printf("Insert error: %v", err)
+      }
 
       totalRetrieved += 1
       fmt.Printf("Posts verificados: %d\n---\n\n", totalRetrieved)
