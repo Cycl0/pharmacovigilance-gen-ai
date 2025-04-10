@@ -274,12 +274,14 @@ func generateTextOpenAI(prompt string) (string, error) {
 }
 
 func generateTextLocalLLM(prompt string) (string, error) {
+  // DEEP_THINKING_INSTRUCTION := "Enable deep thinking subroutine."
   client := &http.Client{}
 	reqBody := map[string]interface{}{
 		// "model": "/models/FuseO1-DeepSeekR1-QwQ-SkyT1-32B-Preview.i1-Q4_K_M.gguf",
-        // "model": "/models/qwen2.5-7b-instruct-q8/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf",
-    	"model": "../unsloth/output/Qwen2.5-7B-Instruct-fine-tuned-pharmacovigilance.gguf",
+    // "model": "/models/qwen2.5-7b-instruct-q8/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf",
+    	"model": "../unsloth/output/Cogito-llama-3B-fine-tuned-pharmacovigilance.gguf",
 		"messages": []map[string]string{
+      // {"role": "system", "content": DEEP_THINKING_INSTRUCTION},
 			{"role": "user", "content": prompt},
 		},
 		"temperature": 0.7,
