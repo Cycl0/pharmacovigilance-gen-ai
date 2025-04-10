@@ -493,7 +493,7 @@ type Medication struct {
 
 func parseMedications(input string) []Medication {
     var medications []Medication
-    entries := strings.Split(input, ":")
+    entries := strings.Split(input, "|")
 
     for _, entry := range entries {
         parts := strings.Split(entry, ",")
@@ -579,7 +579,41 @@ func main() {
       // If there are multiple side effects, separate them with a single comma without any whitespace
       // Post: %s`, query, query, query, query, post.Record.Text)
 
+
       // Prompt 3
+
+			// prompt := fmt.Sprintf(`
+
+      //   Only answer in english in a single line with the output following these templates
+      //   medicine is always first
+      //   (adr is adverse drug reaction)
+      //   replace each one with the actual medicine and the actual respective adrs
+      //   if an adr is non existent, put an upper case X instead
+      //   Each list has a head (the first element), the head will always be the medicine name and the rest will be the adrs
+      //   USE the following separator ":" to separate the lists
+      //   <medicine1>,<adr1>:<medicine2>,<adr1>
+
+      //   DO NOT DEVIATE FROM THE OUTPUT TEMPLATE
+      //   Example 1 of output:
+      //   <medicine1>,<adr1>
+      //   Example 2 of output:
+      //   <medicine1>,<adr1>,<adr2>,<adr3>
+      //   Example 3 of output:
+      //   <medicine1>,<adr1>,<adr2>:<medicine1>,<adr1>,<adr2>,<adr3>
+      //   Example 4 of outupt:
+      //   <medicine1>,<adr1>:<medicine2>,<adr1>:<medicine3>,<adr1>,<adr2>,<adr3>
+
+      //   You are a pharmacovigilance specialist and you are analyzing the side effects regarding medicines in social media posts.
+      //   YOU MUST BE ABLE TO UNDERSTAND AND INTERPRET INFORMAL LANGUAGE IN ANY LANGUAGE, YOU MUST NOT CONFUSE SIDE EFFECTS WITH THE SYMPTHOMS THE MEDICINE SOLVES
+      //   YOU MUST NOT ASSUME  WHAT THE SIDE EFFECTS ARE, YOU SHOULD EXTRACT IT FROM THE TEXT AND RESUME IT
+			// 	DO NOT EXPLAIN OR COMMENT
+			// 	Does this post talk about a medicine and its side effects, physical or emotional?
+      //   Put an X in the first adr field for the respective medicine if it's talking about sympthons that are not related to the medicine
+			// 	Translate to english the main side effects each resumed in a one or two words and the name of the medicine
+      //   Post: %s`, post.Record.Text)
+
+
+      // Prompt 4
 
 			prompt := fmt.Sprintf(`
 
@@ -589,18 +623,22 @@ func main() {
         replace each one with the actual medicine and the actual respective adrs
         if an adr is non existent, put an upper case X instead
         Each list has a head (the first element), the head will always be the medicine name and the rest will be the adrs
-        USE the following separator ":" to separate the lists
-        <medicine1>,<adr1>:<medicine2>,<adr1>
+        USE the following separator "|" to separate the lists like in:
+        medicine1,adr1|medicine2,adr1
 
-        DO NOT DEVIATE FROM THE OUTPUT TEMPLATE
-        Example 1 of output:
-        <medicine1>,<adr1>
-        Example 2 of output:
-        <medicine1>,<adr1>,<adr2>,<adr3>
-        Example 3 of output:
-        <medicine1>,<adr1>,<adr2>:<medicine1>,<adr1>,<adr2>,<adr3>
-        Example 4 of outupt:
-        <medicine1>,<adr1>:<medicine2>,<adr1>:<medicine3>,<adr1>,<adr2>,<adr3>
+        Example 1 of output if there is a single medicine: medicine1,adr1
+        Example 2 of output: medicine1,adr1,adr2,adr3
+        Example 3 of output: medicine1,adr1,adr2|medicine1,adr1,adr2,adr3
+        Example 4 of outupt: medicine1,adr1|medicine2,adr1|medicine3,adr1,adr2,adr3
+        Example 5 of output if there is no medicine or no adverse drug reactions related: X
+
+        So if the Post was: Fluoxetina me da nausea e apatia, Venvanse me deixa ansiosa
+        The output would be for example (DO NOT COPY THIS IS AN EXAMPLE):
+        Fluoxetine,Nausea,Apathy|Venvanse,Anxiety
+
+        BUT ONLY DO THAT IF THE USER IS TALKING ABOUT A MEDICINE AND THEIR SIDE EFFECTS, PUT AN X IF THAT IS NOT THE CASE
+        CAPTURE THE NAMES OF THE MEDICINES AND THEIR ADVERSE REACTIONS RESUMED, DO NOT CAPTURE ANYTHING ELSE
+        AVOID AT ALL COSTS, NOTES, OBSERVATIONS OR ANY COMMENTARY
 
         You are a pharmacovigilance specialist and you are analyzing the side effects regarding medicines in social media posts.
         YOU MUST BE ABLE TO UNDERSTAND AND INTERPRET INFORMAL LANGUAGE IN ANY LANGUAGE, YOU MUST NOT CONFUSE SIDE EFFECTS WITH THE SYMPTHOMS THE MEDICINE SOLVES
