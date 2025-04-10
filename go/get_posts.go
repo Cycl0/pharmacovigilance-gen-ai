@@ -276,12 +276,14 @@ func generateTextOpenAI(prompt string) (string, error) {
 func generateTextLocalLLM(prompt string) (string, error) {
   client := &http.Client{}
 	reqBody := map[string]interface{}{
-		"model": "/models/FuseO1-DeepSeekR1-QwQ-SkyT1-32B-Preview.i1-Q4_K_M.gguf",
+		// "model": "/models/FuseO1-DeepSeekR1-QwQ-SkyT1-32B-Preview.i1-Q4_K_M.gguf",
+        // "model": "/models/qwen2.5-7b-instruct-q8/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf",
+    	"model": "../unsloth/output/Qwen2.5-7B-Instruct-fine-tuned-pharmacovigilance.gguf",
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
 		},
 		"temperature": 0.7,
-		"max_tokens":  8192,
+		"max_tokens":  2048,
 	}
 
 	jsonBody, _ := json.Marshal(reqBody)
@@ -519,7 +521,7 @@ func main() {
 	accessToken := authenticate()
 
 	client := &http.Client{}
-	query := "Venvanse"
+	query := "Fluoxetina"
 	maxResults := 100
 	totalRetrieved := 0
 	cursor := ""
@@ -579,11 +581,16 @@ func main() {
 
 			prompt := fmt.Sprintf(`
 
-        Only answer in a single line with the output following these templates
+        Only answer in english in a single line with the output following these templates
         medicine is always first
         (adr is adverse drug reaction)
-        if an adr is non existent, put an X instead
+        replace each one with the actual medicine and the actual respective adrs
+        if an adr is non existent, put an upper case X instead
+        Each list has a head (the first element), the head will always be the medicine name and the rest will be the adrs
+        USE the following separator ":" to separate the lists
+        <medicine1>,<adr1>:<medicine2>,<adr1>
 
+        DO NOT DEVIATE FROM THE OUTPUT TEMPLATE
         Example 1 of output:
         <medicine1>,<adr1>
         Example 2 of output:
@@ -595,16 +602,15 @@ func main() {
 
         You are a pharmacovigilance specialist and you are analyzing the side effects regarding medicines in social media posts.
         YOU MUST BE ABLE TO UNDERSTAND AND INTERPRET INFORMAL LANGUAGE IN ANY LANGUAGE, YOU MUST NOT CONFUSE SIDE EFFECTS WITH THE SYMPTHOMS THE MEDICINE SOLVES
-        YOU MUST NOT ASSUME THE WHAT THE SIDE EFFECTS ARE, YOU SHOULD EXTRACT IT FROM THE TEXT
+        YOU MUST NOT ASSUME  WHAT THE SIDE EFFECTS ARE, YOU SHOULD EXTRACT IT FROM THE TEXT AND RESUME IT
 				DO NOT EXPLAIN OR COMMENT
 				Does this post talk about a medicine and its side effects, physical or emotional?
-        Make the pairs and answer if there is any medicine or adrs
         Put an X in the first adr field for the respective medicine if it's talking about sympthons that are not related to the medicine
-				Translate to english the main side effects and the name of the medicine
+				Translate to english the main side effects each resumed in a one or two words and the name of the medicine
         Post: %s`, post.Record.Text)
 
 
- 		answer, errGeneration := generateTextUmbrella(prompt)
+ 		answer, errGeneration := generateTextLocalLLM(prompt)
       if errGeneration != nil {
         log.Printf("Error: %v", errGeneration)
       }

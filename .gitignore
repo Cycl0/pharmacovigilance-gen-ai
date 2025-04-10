@@ -1,2 +1,8 @@
 **/.env
 *.swp
+unsloth/model_cache/*
+!unsloth/model_cache/.gitkeep
+unsloth/output/*
+!unsloth/output/.gitkeep
+unsloth/training_data_set/*
+!unsloth/training_data_set/.gitkeep
