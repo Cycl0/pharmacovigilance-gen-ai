@@ -66,5 +66,10 @@ COPY unsloth_trainer.py convert_to_gguf.py create_dataset.py merge_with_full_mod
 WORKDIR /trainer
 
 # Run the training script, create dataset, and convert to GGUF
-CMD [ "/bin/sh", "-c", "python3 create_dataset.py && python3 unsloth_trainer.py && python3 merge_with_full_model.py && python3 convert_to_gguf.py --input output/merged_model --output output/Qwen2.5-7B-Instruct-fine-tuned-pharmacovigilance.gguf --quantization f16" ]
+
+# QLoRA
+# CMD [ "/bin/sh", "-c", "python3 create_dataset.py && python3 unsloth_trainer.py && python3 merge_with_full_model.py && python3 convert_to_gguf.py --input output/merged_model --output output/Qwen2.5-7B-Instruct-fine-tuned-pharmacovigilance.gguf --quantization f16" ]
 # CMD [ "/bin/sh", "-c", "python3 merge_with_full_model.py && python3 convert_to_gguf.py --input output/merged_model --output output/Qwen2.5-7B-Instruct-fine-tuned-pharmacovigilance.gguf --quantization f16" ]
+
+# Full model
+CMD [ "/bin/sh", "-c", "python3 create_dataset.py && python3 unsloth_trainer.py && python3 convert_to_gguf.py --input output/full_model --output output/Cogito-llama-3B-fine-tuned-pharmacovigilance.gguf --quantization f32" ]
