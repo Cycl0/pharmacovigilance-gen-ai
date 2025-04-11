@@ -9,22 +9,23 @@ from peft import LoraConfig, get_peft_model
 import os
 from trl import DataCollatorForCompletionOnlyLM
 
-MODEL_ID = "deepcogito/cogito-v1-preview-llama-3B"
+MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
 TRAINING_DATA_PATH = "training_data_set"
 OUTPUT_DATA_PATH = "output"
 NUM_EPOCHS = 5
 USE_QLORA = False
+USE_LORA = True
 
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=MODEL_ID,
-    max_seq_length=2048,
+    max_seq_length=1024,
     dtype=torch.bfloat16,  # Use bfloat16 for better numerical stability
     load_in_4bit=USE_QLORA,
-    load_in_8bit=False,
+    load_in_8bit=USE_LORA,
 )
 
 # Apply LoRA to the model
-if USE_QLORA:
+if USE_QLORA or USE_LORA:
     # LoRA configuration optimized for maximum quality
     lora_config = LoraConfig(
         r=64,                     # Higher rank for better quality
@@ -86,8 +87,8 @@ formatted_dataset = dataset.map(format_instruction)
 training_args = TrainingArguments(
     output_dir=OUTPUT_DATA_PATH,
     num_train_epochs=NUM_EPOCHS,    # Increased epochs for better learning
-    per_device_train_batch_size=16 if USE_QLORA else 16,
-    gradient_accumulation_steps=2 if USE_QLORA else 1,
+    per_device_train_batch_size=16 if USE_QLORA or USE_LORA else 1,
+    gradient_accumulation_steps=1 if USE_QLORA or USE_LORA else 16,
     learning_rate=1e-4,             # Scaled LR for larger batches [[16]]
     fp16=False,                     # Disable fp16 for better precision
     bf16=True,                      # Use bfloat16 instead
@@ -98,7 +99,7 @@ training_args = TrainingArguments(
     weight_decay=0.01,              # Increased weight decay for better regularization
     lr_scheduler_type="cosine",     # Cosine learning rate schedule
     save_total_limit=2,             # Keep more checkpoints
-    gradient_checkpointing=USE_QLORA,    # Enable gradient checkpointing for memory efficiency
+    gradient_checkpointing=True,    # Enable gradient checkpointing for memory efficiency
     optim="adamw_torch",            # Use PyTorch's AdamW implementation
     max_grad_norm=1.0,              # Gradient clipping
     # Explicitly disable DeepSpeed
@@ -111,7 +112,6 @@ trainer = SFTTrainer(
     train_dataset=formatted_dataset,
     args=training_args,
     tokenizer=tokenizer,
-    max_seq_length=2048,
 )
 
 # Train the model
@@ -129,6 +129,11 @@ if USE_QLORA:
     model.save_pretrained(os.path.join(OUTPUT_DATA_PATH, "qlora_adapters"))
     tokenizer.save_pretrained(os.path.join(OUTPUT_DATA_PATH, "qlora_adapters"))
     print("Saved adapter files:", os.path.join(OUTPUT_DATA_PATH, "qlora_adapters"))
+elif USE_LORA:
+    print("Saving adapters...")
+    model.save_pretrained(os.path.join(OUTPUT_DATA_PATH, "lora_adapters"))
+    tokenizer.save_pretrained(os.path.join(OUTPUT_DATA_PATH, "lora_adapters"))
+    print("Saved adapter files:", os.path.join(OUTPUT_DATA_PATH, "lora_adapters"))
 else:
     print("Saving full model")
     trainer.model.save_pretrained(os.path.join(OUTPUT_DATA_PATH, "full_model"))
