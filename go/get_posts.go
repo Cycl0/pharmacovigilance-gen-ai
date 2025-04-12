@@ -20,6 +20,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+  "golang.org/x/exp/slices"
 )
 
 // .env
@@ -493,7 +494,7 @@ type Medication struct {
     ADRs []string
 }
 
-func parseMedications(input string) []Medication {
+func parseMedications(input string, query string) []Medication {
     var medications []Medication
     entries := strings.Split(input, "|")
 
@@ -507,8 +508,13 @@ func parseMedications(input string) []Medication {
             parts[i] = strings.TrimSpace(parts[i])
         }
 
+        medicine := parts[0]
+        if medicine == "X" {
+          medicine = query
+        }
+
         med := Medication{
-            Name: parts[0],
+            Name: medicine,
             ADRs: parts[1:],
         }
 
@@ -521,7 +527,9 @@ func parseMedications(input string) []Medication {
 func main() {
   benchmarkTime := time.Now();
 
-  var queryList = [...]string{"venvanse", "aripiprazol", "fluoxetina", "escitalopram", "sertralina", "ritalina", "atentah", "concerta", "bupropiona", "risperidona", "paroxetina", "venlafaxina", "vortioxetina",  "agomelatina", "desvenlafaxina", "duloxetina", "vortioxetina", "nefazodona", " trazodona", "clonazepam", "alprazolam", "lorazepam", "bromazepam", "diazepam", "amitriptilina", "clomipramina", "desipramina", "doxepina", "imipramina", "maprotilina", "nortriptilina", "protriptilina", "trimipramina"}
+  var queryList = [...]string{"Venvanse", "Aripiprazol", "Fluoxetina", "Escitalopram", "Sertralina", "Ritalina", "Atentah", "Concerta", "Bupropiona", "Risperidona", "Paroxetina", "Venlafaxina", "Vortioxetina",  "Agomelatina", "Desvenlafaxina", "Duloxetina", "Vortioxetina", "Nefazodona", " Trazodona", "Clonazepam", "Alprazolam", "Lorazepam", "Bromazepam", "Diazepam", "Amitriptilina", "Clomipramina", "Desipramina", "Doxepina", "Imipramina", "Maprotilina", "Nortriptilina", "Protriptilina", "Trimipramina", "Puran", "Salonpas", "Cliclo", "Microvlar", "Buscopan", "Rivotril", "Dorflex", "Glifage"}
+  var adrList = []string{"Nausea", "Apathy", "Anxiety", "Sleepiness", "Arrhythmia"}
+
   for _, query := range queryList {
     initDB()
     accessToken := authenticate()
@@ -529,15 +537,16 @@ func main() {
     maxResults := 500
     totalRetrieved := 0
     cursor := ""
-
     for {
       req, _ := http.NewRequest("GET", "https://bsky.social/xrpc/app.bsky.feed.searchPosts", nil)
       q := req.URL.Query()
       q.Add("q", query)
       q.Add("limit", "100")
+
       if cursor != "" {
         q.Add("cursor", cursor)
       }
+
       req.URL.RawQuery = q.Encode()
       req.Header.Add("Authorization", "Bearer "+accessToken)
 
@@ -550,8 +559,12 @@ func main() {
         Posts  []Post `json:"posts"`
         Cursor string `json:"cursor"`
       }
+
       json.NewDecoder(resp.Body).Decode(&result)
       resp.Body.Close()
+
+      log.Printf("API: %d posts, cursor=%v, Total=%d",
+    len(result.Posts), result.Cursor != "", totalRetrieved)
 
       for _, post := range result.Posts {
 
@@ -616,55 +629,60 @@ func main() {
 
 
         // Prompt 4
-
         prompt := fmt.Sprintf(`
 
           Only answer in english in a single line with the output following these templates
           medicine is always first
           (adr is adverse drug reaction)
           replace each one with the actual medicine and the actual respective adrs
-          if an adr is non existent, put an upper case X instead
           Each list has a head (the first element), the head will always be the medicine name and the rest will be the adrs
           USE the following separator "|" to separate the lists like in:
           medicine1,adr1|medicine2,adr1
 
-          Example 1 of output if there is a single medicine: medicine1,adr1
+          Example 1 of output if there is a single medicine with a single adr: medicine1,adr1
           Example 2 of output: medicine1,adr1,adr2,adr3
-          Example 3 of output: medicine1,adr1,adr2|medicine1,adr1,adr2,adr3
+          Example 3 of output with multiple medicines and multiple adrs: medicine1,adr1,adr2|medicine1,adr1,adr2,adr3,adr4
           Example 4 of outupt: medicine1,adr1|medicine2,adr1|medicine3,adr1,adr2,adr3
-          Example 5 of output if there is no medicine or no adverse drug reactions related: X
+          Example 5 of output if there is just a medicine: medicine1
+          Example 6 of output if theree is just adrs and no medicine: X,adr1,adr2,adr3
 
-          So if the Post was: Fluoxetina me da nausea e apatia, Venvanse me deixa ansiosa
+          So if the Post was: 'Fluoxetina me da nausea e apatia, Venvanse me deixa ansiosa'
           The output would be for example (DO NOT COPY THIS IS AN EXAMPLE):
           Fluoxetine,Nausea,Apathy|Venvanse,Anxiety
 
-          BUT ONLY DO THAT IF THE USER IS TALKING ABOUT A MEDICINE AND THEIR SIDE EFFECTS, PUT AN X IF THAT IS NOT THE CASE
+          BUT ONLY DO THAT IF THE USER IS TALKING ABOUT A MEDICINE AND THEIR SIDE EFFECTS, PUT JUST THE NAME OF THE MEDICINE IF THAT IS NOT THE CASE
           CAPTURE THE NAMES OF THE MEDICINES AND THEIR ADVERSE REACTIONS RESUMED, DO NOT CAPTURE ANYTHING ELSE
-          AVOID AT ALL COSTS, NOTES, OBSERVATIONS OR ANY COMMENTARY
+          AVOID AT ALL COSTS NOTES, OBSERVATIONS OR ANY COMMENTARY
 
           Does this post talk about a medicine and its side effects, physical or emotional?
 
-          Post: %s`, post.Record.Text)
+          USE THIS LIST AS REFERENCE FOR THE ADRS: %S. ONLY DEVIATE FROM THE LIST IF THE ADR IS NOT ABSOLUTELY NOT PRESENT ON THE LIST FOR EXAPLE SOMNOLENCE IS THE SAME AS SLEEPINESS SO SLEEPINESS SHOULD BE USED
+
+          Post: %s`, strings.Join(adrList, ","), post.Record.Text)
+
+      print(fmt.Sprintf("\n***\nADRs Lista: %s\n***\n", strings.Join(adrList, ",")))
 
 
-      answer, errGeneration := generateTextLocalLLM(prompt)
+      answer, errGeneration := generateTextOpenRouter(prompt)
         if errGeneration != nil {
           log.Printf("Error: %v", errGeneration)
         }
 
-        analysis := parseMedications(answer)
+        analysis := parseMedications(answer,query)
 
         var medicationUpdates []mongo.WriteModel
         for _, med := range analysis {
           if med.Name == "" {
             continue
           }
-
           // Filtrar fora 'X' (Que significa sem ADRs)
           filteredADRs := make([]string, 0)
           for _, adr := range med.ADRs {
             if adr != "X" {
               filteredADRs = append(filteredADRs, adr)
+              if !slices.Contains(adrList, adr) {
+                adrList = append(adrList, adr)
+              }
             }
           }
 
@@ -731,27 +749,28 @@ func main() {
         fmt.Printf("Posts verificados: %d\n---\n\n", totalRetrieved)
 
         print(fmt.Sprintf(`Usuario: %s
+
   `, post.Author.DisplayName))
         print(fmt.Sprintf(`Texto: %s
+
   `, post.Record.Text))
+        print(fmt.Sprintf(`Output: %s
+  `, answer))
         print(fmt.Sprintf(`Analise: %s
 
   ---
 
   `, analysis))
 
-        if result.Cursor == "" || totalRetrieved >= maxResults {
-          timeElapsed := time.Since(benchmarkTime)
-          print(fmt.Sprintf("\n--- Tempo total: %s ---\n", timeElapsed))
-          break
-        }
-
       }
 
-      if result.Cursor == "" || totalRetrieved >= maxResults {
+      cursor = result.Cursor
+
+      if cursor == "" || totalRetrieved >= maxResults {
+        timeElapsed := time.Since(benchmarkTime)
+        print(fmt.Sprintf("\n--- Tempo total: %s ---\n", timeElapsed))
         break
       }
-      cursor = result.Cursor
       time.Sleep(1 * time.Second)
     }
   }
